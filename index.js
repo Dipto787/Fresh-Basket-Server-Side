@@ -115,12 +115,13 @@ async function run() {
 
         app.get('/fruits', async (req, res) => {
             let category = req.query.category;
-            if (category === 'All Fruits') {
-                let result = await fruits.find().toArray();
-                return res.send(result);
-            }
+            let shipping = req.query.shipping;
+            console.log(shipping)
+            // console.log(category)
             let query = {};
             if (category && category !== 'null') query = { category };
+            if (shipping && shipping !== 'null') query = { free_shipping: shipping === shipping };
+            console.log(query)
             let result = await fruits.find(query).toArray();
             res.send(result)
         })
@@ -133,7 +134,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/fruits/:id', verifyToken, async (req, res) => {
+        app.get('/fruits/:id', async (req, res) => {
             let id = req.params.id;
             let query = { _id: new ObjectId(id) };
             let result = await fruits.findOne(query);
@@ -170,8 +171,22 @@ async function run() {
             res.send(result)
         })
 
-        app.post('/cart', verifyToken, checkBlockedUser, async (req, res) => {
+        app.post('/cart', verifyToken, async (req, res) => {
             let fruit = req.body;
+            let query = {};
+            query.email = fruit.email;
+            query.name = fruit.name;
+            let isAlready = await carts.findOne(query)
+            if (isAlready) {
+                console.log(fruit.kg,isAlready.kg)
+                let updateDoc = {
+                    $set: {
+                        kg: parseInt(fruit.kg) + parseInt(isAlready.kg)
+                    }
+                }
+                let result = await carts.updateOne(isAlready, updateDoc);
+                return res.send(result);
+            }
             let result = await carts.insertOne(fruit);
             res.send(result);
         })
@@ -228,7 +243,7 @@ async function run() {
         })
 
 
-        app.post('/user', verifyToken, async (req, res) => {
+        app.post('/user', async (req, res) => {
             let users = req.body;
             let query = { email: users.email };
             let existingUser = await userCollection.findOne(query);
